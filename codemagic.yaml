@@ -9,7 +9,7 @@ workflows:
 
     environment:
       groups:
-        - ly_yildirimlar_signing
+        - hanzade_signing
       vars:
         BUNDLE_ID: com.lyyildirimlarinsaat.app
         APPLE_TEAM_ID: H8Z7YGN6J5
