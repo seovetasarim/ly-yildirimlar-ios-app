@@ -24,10 +24,26 @@ workflows:
 
           CERT_KEY_PATH="$HOME/cert_key.pem"
           if [ -z "$CERT_KEY_BASE64" ]; then
-            echo "ERROR: CERT_KEY_BASE64 env var missing in ly_yildirimlar_signing group"
+            echo "ERROR: CERT_KEY_BASE64 env var missing in hanzade_signing group"
             exit 1
           fi
-          echo "$CERT_KEY_BASE64" | base64 --decode > "$CERT_KEY_PATH" 2>/dev/null || echo "$CERT_KEY_BASE64" | base64 -D > "$CERT_KEY_PATH"
+
+          # Strip whitespace/newlines then decode; also accept raw PEM if pasted by mistake
+          python3 - <<'PY'
+          import os, base64, pathlib
+          raw = os.environ["CERT_KEY_BASE64"].strip()
+          out = pathlib.Path.home() / "cert_key.pem"
+          if raw.startswith("-----BEGIN"):
+              data = (raw + "\n").encode()
+          else:
+              compact = "".join(raw.split())
+              data = base64.b64decode(compact)
+          out.write_bytes(data)
+          text = data.decode("utf-8", errors="replace")
+          if "BEGIN" not in text or "PRIVATE KEY" not in text:
+              raise SystemExit("Decoded CERT_KEY_BASE64 is not a PEM private key")
+          print("cert key ok, bytes:", len(data))
+          PY
 
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
