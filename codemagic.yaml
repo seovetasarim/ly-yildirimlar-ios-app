@@ -1,0 +1,62 @@
+workflows:
+  ly-yildirimlar-ios-ipa:
+    name: LY Yildirimlar iOS IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: Codemagic
+
+    environment:
+      groups:
+        - ly_yildirimlar_signing
+      vars:
+        BUNDLE_ID: com.lyyildirimlarinsaat.app
+        APPLE_TEAM_ID: H8Z7YGN6J5
+        XCODE_PROJECT: "LY Yildirimlar.xcodeproj"
+        XCODE_SCHEME: "LY Yildirimlar"
+
+    scripts:
+      - name: Code signing ayarla
+        script: |
+          set -e
+          keychain initialize
+
+          CERT_KEY_PATH="$HOME/cert_key.pem"
+          if [ -z "$CERT_KEY_BASE64" ]; then
+            echo "ERROR: CERT_KEY_BASE64 env var missing in ly_yildirimlar_signing group"
+            exit 1
+          fi
+          echo "$CERT_KEY_BASE64" | base64 --decode > "$CERT_KEY_PATH" 2>/dev/null || echo "$CERT_KEY_BASE64" | base64 -D > "$CERT_KEY_PATH"
+
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create \
+            --certificate-key=@file:"$CERT_KEY_PATH"
+
+          keychain add-certificates
+
+          cd src
+          xcode-project use-profiles \
+            --project "LY Yildirimlar.xcodeproj" \
+            --archive-method app-store
+
+      - name: IPA derle
+        script: |
+          set -e
+          cd src
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --config "Release"
+
+    artifacts:
+      - src/build/ios/ipa/*.ipa
+      - build/ios/ipa/*.ipa
+      - "**/*.ipa"
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
