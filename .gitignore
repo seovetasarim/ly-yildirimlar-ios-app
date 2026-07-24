@@ -2,3 +2,6 @@ Pods/
 DerivedData/
 *.xcuserstate
 .DS_Store
+*.pem
+CERT_KEY*
+_tmp_*
